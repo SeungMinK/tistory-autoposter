@@ -1,0 +1,27 @@
+{
+  "name": "tistory-autoposter",
+  "version": "1.0.0",
+  "description": "GitHub 이슈 기반 티스토리 자동 포스팅 (Claude Haiku 판단 + 작성)",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsup",
+    "start": "node dist/index.js",
+    "setup-cookies": "tsx scripts/setup-cookies.ts",
+    "check-cookies": "tsx scripts/check-cookies.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "puppeteer": "^24.0.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,30 @@
+name: Check Tistory Cookies
+
+on:
+  schedule:
+    - cron: "0 9 * * 1" # 매주 월요일 09:00 UTC (18:00 KST)
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check cookies
+        env:
+          TISTORY_COOKIES: ${{ secrets.TISTORY_COOKIES }}
+          TISTORY_BLOG_NAME: ${{ secrets.TISTORY_BLOG_NAME }}
+        run: npx tsx scripts/check-cookies.ts
