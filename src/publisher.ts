@@ -1,5 +1,6 @@
 import type { TistoryCookie, PublishResult, WriterResult } from "./types.js";
 import { loadConfig } from "./config.js";
+import type { PublishConfig } from "./project-config.js";
 
 /**
  * Base64로 인코딩된 쿠키 JSON을 파싱한다.
@@ -17,25 +18,55 @@ function cookiesToHeader(cookies: TistoryCookie[]): string {
 }
 
 /**
+ * 태그에 prefix와 extraTags를 적용한다.
+ */
+function buildTags(post: WriterResult, publishCfg: PublishConfig): string[] {
+  let tags = post.tags;
+  if (publishCfg.tagPrefix) {
+    tags = tags.map((t) => `${publishCfg.tagPrefix}${t}`);
+  }
+  if (publishCfg.extraTags.length > 0) {
+    tags = [...tags, ...publishCfg.extraTags];
+  }
+  return tags;
+}
+
+/**
+ * Date를 티스토리 API 형식으로 변환한다 (YYYY-MM-DD HH:mm:ss, KST).
+ */
+function formatTistoryDate(date: Date): string {
+  const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().replace("T", " ").slice(0, 19);
+}
+
+/**
  * HTTP POST로 티스토리에 글을 발행한다.
- * 티스토리 내부 write API 엔드포인트 사용.
+ * scheduledDate가 주어지면 예약 발행.
  */
 async function publishViaHttp(
   blogName: string,
   cookies: TistoryCookie[],
-  post: WriterResult
+  post: WriterResult,
+  publishCfg: PublishConfig,
+  scheduledDate?: Date,
 ): Promise<PublishResult> {
   const url = `https://${blogName}.tistory.com/manage/post/write.json`;
   const cookieHeader = cookiesToHeader(cookies);
+  const tags = buildTags(post, publishCfg);
 
   const formData = new URLSearchParams();
   formData.append("title", post.title);
   formData.append("content", post.htmlContent);
-  formData.append("category", "0"); // 기본 카테고리
-  formData.append("visibility", "3"); // 발행 (0: 비공개, 3: 공개)
+  formData.append("category", String(publishCfg.categoryId));
+  formData.append("visibility", String(publishCfg.visibility));
   formData.append("acceptComment", "1");
-  formData.append("tag", post.tags.join(","));
+  formData.append("tag", tags.join(","));
   formData.append("editor", "0"); // HTML 에디터
+
+  if (scheduledDate) {
+    formData.append("date", formatTistoryDate(scheduledDate));
+    console.log(`예약 발행: ${formatTistoryDate(scheduledDate)} KST`);
+  }
 
   const response = await fetch(url, {
     method: "POST",
@@ -66,7 +97,7 @@ async function publishViaHttp(
 async function publishViaPuppeteer(
   blogName: string,
   cookies: TistoryCookie[],
-  post: WriterResult
+  post: WriterResult,
 ): Promise<PublishResult> {
   const puppeteer = await import("puppeteer");
   const browser = await puppeteer.default.launch({
@@ -91,10 +122,6 @@ async function publishViaPuppeteer(
     // 글쓰기 페이지 이동
     const writeUrl = `https://${blogName}.tistory.com/manage/newpost`;
     await page.goto(writeUrl, { waitUntil: "networkidle2", timeout: 30000 });
-
-    // HTML 모드로 전환 후 내용 입력
-    // 주의: 셀렉터는 티스토리 에디터 버전에 따라 변경될 수 있음
-    // 실제 사용 전 Chrome DevTools로 확인 필요
 
     // 제목 입력
     await page.waitForSelector("#post-title-inp", { timeout: 10000 });
@@ -152,15 +179,24 @@ async function publishViaPuppeteer(
 /**
  * 티스토리에 블로그 글을 발행한다.
  * HTTP POST를 먼저 시도하고, 실패 시 Puppeteer로 폴백.
+ * scheduledDate가 주어지면 예약 발행.
  */
-export async function publish(post: WriterResult): Promise<PublishResult> {
+export async function publish(
+  post: WriterResult,
+  publishCfg: PublishConfig,
+  scheduledDate?: Date | null,
+): Promise<PublishResult> {
   const config = loadConfig();
 
   if (config.DRY_RUN) {
     console.log("[DRY_RUN] 발행 스킵");
     console.log(`[DRY_RUN] 제목: ${post.title}`);
-    console.log(`[DRY_RUN] 태그: ${post.tags.join(", ")}`);
+    console.log(`[DRY_RUN] 태그: ${buildTags(post, publishCfg).join(", ")}`);
     console.log(`[DRY_RUN] HTML 길이: ${post.htmlContent.length}자`);
+    console.log(`[DRY_RUN] 카테고리: ${publishCfg.categoryId}, 공개: ${publishCfg.visibility}`);
+    if (scheduledDate) {
+      console.log(`[DRY_RUN] 예약: ${formatTistoryDate(scheduledDate)} KST`);
+    }
     return { success: true, method: "http", url: "(dry-run)" };
   }
 
@@ -168,13 +204,16 @@ export async function publish(post: WriterResult): Promise<PublishResult> {
 
   // 1차: HTTP POST 시도
   try {
-    console.log("HTTP POST로 발행 시도...");
-    return await publishViaHttp(config.TISTORY_BLOG_NAME, cookies, post);
+    console.log(scheduledDate ? "HTTP POST로 예약 발행 시도..." : "HTTP POST로 발행 시도...");
+    return await publishViaHttp(config.TISTORY_BLOG_NAME, cookies, post, publishCfg, scheduledDate ?? undefined);
   } catch (httpError) {
     console.warn(`HTTP 발행 실패, Puppeteer 폴백: ${httpError}`);
   }
 
-  // 2차: Puppeteer 폴백
+  // 2차: Puppeteer 폴백 (예약 발행은 HTTP에서만 지원)
+  if (scheduledDate) {
+    console.warn("Puppeteer 폴백은 예약 발행을 지원하지 않습니다. 즉시 발행합니다.");
+  }
   try {
     console.log("Puppeteer로 발행 시도...");
     return await publishViaPuppeteer(config.TISTORY_BLOG_NAME, cookies, post);

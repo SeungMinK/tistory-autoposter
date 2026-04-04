@@ -1,0 +1,33 @@
+mode: per-issue
+trigger:
+  on: close
+  requireLabels: []
+  ignoreAuthors: []
+prefilter:
+  skipLabels: [no-blog, duplicate, invalid, wontfix]
+  minBodyLength: 30
+  skipBots: true
+judge:
+  promptMode: extend
+  systemPromptExtra: ""
+  additionalCriteria: ""
+writer:
+  promptMode: extend
+  systemPromptExtra: ""
+  tone: ""
+  targetLength: "1000-2000"
+  language: ko
+  structureHint: ""
+publish:
+  categoryId: 0
+  visibility: 3
+  tagPrefix: ""
+  extraTags: []
+batch:
+  minIssues: 2
+  maxIntervalDays: 3
+  titleTemplate: "{repo} 개발일지 - {date}"
+  labels:
+    worthy: blog-적합
+    notWorthy: blog-부적합
+    published: blog-완료

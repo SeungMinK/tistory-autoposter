@@ -44,6 +44,11 @@ export interface PublishResult {
   error?: string;
 }
 
+/** dispatch payload에 포함되는 프로젝트별 설정 (base64 인코딩된 YAML) */
+export interface DispatchPayload extends IssuePayload {
+  config?: string;
+}
+
 /** 파이프라인 전체 결과 */
 export interface PipelineResult {
   issueUrl: string;
@@ -52,6 +57,12 @@ export interface PipelineResult {
   judgeResult?: JudgeResult;
   writerResult?: WriterResult;
   publishResult?: PublishResult;
+  batchInfo?: {
+    issueCount: number;
+    issueNumbers: number[];
+    scheduled: boolean;
+    scheduledDate?: string;
+  };
 }
 
 /** 티스토리 쿠키 */

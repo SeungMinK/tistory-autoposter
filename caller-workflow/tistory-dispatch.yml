@@ -1,5 +1,6 @@
 # 소스 레포(예: cryptobot)의 .github/workflows/ 에 복사하여 사용
 # 이슈 close 또는 'blog-worthy' 라벨 부착 시 autoposter에 dispatch 이벤트 전송
+# .autoposter.yml이 있으면 프로젝트별 설정을 함께 전달
 
 name: Tistory Blog Dispatch
 
@@ -17,6 +18,24 @@ jobs:
     timeout-minutes: 2
 
     steps:
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .autoposter.yml
+          sparse-checkout-cone-mode: false
+
+      - name: Read project config
+        id: config
+        run: |
+          if [ -f .autoposter.yml ]; then
+            CONFIG=$(base64 -w 0 < .autoposter.yml)
+            echo "config=$CONFIG" >> "$GITHUB_OUTPUT"
+            echo "프로젝트 설정 발견: .autoposter.yml"
+          else
+            echo "config=" >> "$GITHUB_OUTPUT"
+            echo "프로젝트 설정 없음 (기본값 사용)"
+          fi
+
       - name: Dispatch to autoposter
         uses: peter-evans/repository-dispatch@v3
         with:
@@ -26,6 +45,7 @@ jobs:
           client-payload: |
             {
               "action": "${{ github.event.action }}",
+              "config": "${{ steps.config.outputs.config }}",
               "issue": {
                 "number": ${{ github.event.issue.number }},
                 "title": ${{ toJSON(github.event.issue.title) }},
