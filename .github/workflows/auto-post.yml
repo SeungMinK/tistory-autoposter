@@ -31,7 +31,7 @@ jobs:
           LLM_MODEL: ${{ vars.LLM_MODEL || 'claude-haiku-4-5' }}
           TISTORY_COOKIES: ${{ secrets.TISTORY_COOKIES }}
           TISTORY_BLOG_NAME: ${{ secrets.TISTORY_BLOG_NAME }}
-          GITHUB_PAT: ${{ secrets.GITHUB_PAT }}
+          SOURCE_REPO_PAT: ${{ secrets.SOURCE_REPO_PAT }}
           GITHUB_EVENT_PATH: ${{ github.event_path }}
         run: node dist/index.js
 

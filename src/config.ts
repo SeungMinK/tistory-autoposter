@@ -5,7 +5,7 @@ const configSchema = z.object({
   LLM_MODEL: z.string().default("claude-haiku-4-5"),
   TISTORY_COOKIES: z.string().min(1, "TISTORY_COOKIES is required"),
   TISTORY_BLOG_NAME: z.string().min(1, "TISTORY_BLOG_NAME is required"),
-  GITHUB_PAT: z.string().optional(), // batch 모드에서 소스 레포 이슈 라벨링에 필요
+  SOURCE_REPO_PAT: z.string().optional(), // batch 모드에서 소스 레포 이슈 라벨링에 필요
   DRY_RUN: z
     .string()
     .optional()

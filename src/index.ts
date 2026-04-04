@@ -91,12 +91,12 @@ async function runBatch(
   const repo = payload.repository.full_name;
   const batchCfg = projectConfig.batch;
 
-  if (!envConfig.GITHUB_PAT) {
-    console.error("batch 모드에는 GITHUB_PAT 환경변수가 필요합니다. per-issue 모드로 폴백합니다.");
+  if (!envConfig.SOURCE_REPO_PAT) {
+    console.error("batch 모드에는 SOURCE_REPO_PAT 환경변수가 필요합니다. per-issue 모드로 폴백합니다.");
     return runPerIssue(payload, projectConfig);
   }
 
-  const gh = new GitHubClient(envConfig.GITHUB_PAT);
+  const gh = new GitHubClient(envConfig.SOURCE_REPO_PAT);
 
   // 1. 프리필터
   const filterResult = prefilter(payload, projectConfig.prefilter, projectConfig.trigger);

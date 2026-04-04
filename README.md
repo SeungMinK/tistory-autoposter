@@ -94,7 +94,7 @@ npm run setup-cookies
 | `ANTHROPIC_API_KEY` | Anthropic API 키 |
 | `TISTORY_COOKIES` | Base64 인코딩된 쿠키 JSON |
 | `TISTORY_BLOG_NAME` | 블로그 이름 (예: `seung-min`) |
-| `GITHUB_PAT` | batch 모드용: 소스 레포 이슈 라벨링 PAT (repo 스코프) |
+| `SOURCE_REPO_PAT` | batch 모드용: 소스 레포 이슈 라벨링 PAT (repo 스코프) |
 
 선택 (Repository Variables):
 
@@ -215,7 +215,7 @@ publish:
 4. `maxIntervalDays`일을 넘기면 이슈가 1개라도 강제 발행
 5. 발행 완료된 이슈에 `blog-완료` 라벨 + 코멘트 자동 부착
 
-**필요 Secret:** `GITHUB_PAT` (autoposter 레포에 설정, 소스 레포 이슈 접근용)
+**필요 Secret:** `SOURCE_REPO_PAT` (autoposter 레포에 설정, 소스 레포 이슈 접근용)
 
 **상태 추적:** `state/{owner}-{repo}.json`에 마지막 발행 시간이 자동 기록됩니다.
 
