@@ -11,7 +11,8 @@
 
 import puppeteer from "puppeteer";
 
-const BLOG_NAME = process.env.TISTORY_BLOG_NAME ?? "seung-min";
+const BLOG_NAME = process.env.TISTORY_BLOG_NAME;
+if (!BLOG_NAME) { console.error("TISTORY_BLOG_NAME 환경변수를 설정하세요."); process.exit(1); }
 const LOGIN_URL = `https://${BLOG_NAME}.tistory.com/manage`;
 const TIMEOUT_MS = 120_000; // 2분 (수동 로그인 대기)
 

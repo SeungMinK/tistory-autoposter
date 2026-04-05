@@ -3,3 +3,8 @@ dist/
 .env
 *.tgz
 .DS_Store
+posts/
+docs/publish-history.md
+scripts/update-category.ts
+scripts/delete-post.ts
+scripts/get-categories.ts

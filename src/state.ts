@@ -18,7 +18,7 @@ function stateDir(): string {
 }
 
 function stateFilePath(repoFullName: string): string {
-  // "SeungMinK/cryptobot" → "SeungMinK-cryptobot.json"
+  // "owner/repo" → "owner-repo.json"
   const safe = repoFullName.replace("/", "-");
   return resolve(stateDir(), `${safe}.json`);
 }

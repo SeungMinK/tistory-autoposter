@@ -7,7 +7,8 @@
  *   또는 GitHub Actions cron에서 실행
  */
 
-const BLOG_NAME = process.env.TISTORY_BLOG_NAME ?? "seung-min";
+const BLOG_NAME = process.env.TISTORY_BLOG_NAME;
+if (!BLOG_NAME) { console.error("TISTORY_BLOG_NAME 환경변수를 설정하세요."); process.exit(1); }
 
 async function main() {
   const cookiesBase64 = process.env.TISTORY_COOKIES;

@@ -50,21 +50,24 @@ async function publishViaHttp(
   publishCfg: PublishConfig,
   scheduledDate?: Date,
 ): Promise<PublishResult> {
-  const url = `https://${blogName}.tistory.com/manage/post/write.json`;
+  const url = `https://${blogName}.tistory.com/manage/post.json`;
   const cookieHeader = cookiesToHeader(cookies);
   const tags = buildTags(post, publishCfg);
 
-  const formData = new URLSearchParams();
-  formData.append("title", post.title);
-  formData.append("content", post.htmlContent);
-  formData.append("category", String(publishCfg.categoryId));
-  formData.append("visibility", String(publishCfg.visibility));
-  formData.append("acceptComment", "1");
-  formData.append("tag", tags.join(","));
-  formData.append("editor", "0"); // HTML 에디터
+  const body: Record<string, string | number> = {
+    id: 0,
+    title: post.title,
+    content: post.htmlContent,
+    category: publishCfg.categoryId,
+    visibility: publishCfg.visibility,
+    acceptComment: 1,
+    tag: tags.join(","),
+    type: "post",
+  };
 
   if (scheduledDate) {
-    formData.append("date", formatTistoryDate(scheduledDate));
+    // Unix timestamp in seconds for scheduled publishing
+    body.published = Math.floor(scheduledDate.getTime() / 1000);
     console.log(`예약 발행: ${formatTistoryDate(scheduledDate)} KST`);
   }
 
@@ -72,18 +75,18 @@ async function publishViaHttp(
     method: "POST",
     headers: {
       Cookie: cookieHeader,
-      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Type": "application/json",
       Referer: `https://${blogName}.tistory.com/manage/newpost`,
     },
-    body: formData.toString(),
+    body: JSON.stringify(body),
     redirect: "manual",
   });
 
   if (response.ok) {
-    const data = (await response.json()) as { url?: string; entryId?: number };
+    const data = (await response.json()) as { entryUrl?: string; url?: string; entryId?: number };
     return {
       success: true,
-      url: data.url ?? `https://${blogName}.tistory.com/${data.entryId}`,
+      url: data.entryUrl ?? data.url ?? `https://${blogName}.tistory.com/${data.entryId}`,
       method: "http",
     };
   }
@@ -93,87 +96,57 @@ async function publishViaHttp(
 
 /**
  * Puppeteer로 티스토리에 글을 발행한다. (HTTP 실패 시 폴백)
+ * JSON API를 사용하여 직접 HTTP 요청을 발행한다.
  */
 async function publishViaPuppeteer(
   blogName: string,
   cookies: TistoryCookie[],
   post: WriterResult,
+  publishCfg: PublishConfig,
+  scheduledDate?: Date,
 ): Promise<PublishResult> {
-  const puppeteer = await import("puppeteer");
-  const browser = await puppeteer.default.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  const url = `https://${blogName}.tistory.com/manage/post.json`;
+  const cookieHeader = cookiesToHeader(cookies);
+  const tags = buildTags(post, publishCfg);
+
+  const body: Record<string, string | number> = {
+    id: 0,
+    title: post.title,
+    content: post.htmlContent,
+    category: publishCfg.categoryId,
+    visibility: publishCfg.visibility,
+    acceptComment: 1,
+    tag: tags.join(","),
+    type: "post",
+  };
+
+  if (scheduledDate) {
+    // Unix timestamp in seconds for scheduled publishing
+    body.published = Math.floor(scheduledDate.getTime() / 1000);
+    console.log(`예약 발행: ${formatTistoryDate(scheduledDate)} KST`);
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Cookie: cookieHeader,
+      "Content-Type": "application/json",
+      Referer: `https://${blogName}.tistory.com/manage/newpost`,
+    },
+    body: JSON.stringify(body),
+    redirect: "manual",
   });
 
-  try {
-    const page = await browser.newPage();
-
-    // 쿠키 설정
-    const puppeteerCookies = cookies.map((c) => ({
-      name: c.name,
-      value: c.value,
-      domain: c.domain,
-      path: c.path ?? "/",
-      httpOnly: c.httpOnly ?? false,
-      secure: c.secure ?? false,
-    }));
-    await page.setCookie(...puppeteerCookies);
-
-    // 글쓰기 페이지 이동
-    const writeUrl = `https://${blogName}.tistory.com/manage/newpost`;
-    await page.goto(writeUrl, { waitUntil: "networkidle2", timeout: 30000 });
-
-    // 제목 입력
-    await page.waitForSelector("#post-title-inp", { timeout: 10000 });
-    await page.type("#post-title-inp", post.title);
-
-    // HTML 모드 전환 버튼
-    const htmlModeBtn = await page.$(".btn-mode-html");
-    if (htmlModeBtn) {
-      await htmlModeBtn.click();
-      await page.waitForTimeout(1000);
-    }
-
-    // HTML 내용 입력
-    await page.evaluate((html: string) => {
-      const editor = document.querySelector(".CodeMirror") as HTMLElement & { CodeMirror?: { setValue: (v: string) => void } };
-      if (editor?.CodeMirror) {
-        editor.CodeMirror.setValue(html);
-      } else {
-        const textarea = document.querySelector("#html-editor-textarea") as HTMLTextAreaElement;
-        if (textarea) textarea.value = html;
-      }
-    }, post.htmlContent);
-
-    // 태그 입력
-    const tagInput = await page.$("#tagText");
-    if (tagInput) {
-      await tagInput.type(post.tags.join(","));
-      await page.keyboard.press("Enter");
-    }
-
-    // 발행 버튼 클릭
-    const publishBtn = await page.$(".btn-publish, #publish-layer-btn");
-    if (publishBtn) {
-      await publishBtn.click();
-      await page.waitForTimeout(2000);
-    }
-
-    // 최종 발행 확인
-    const confirmBtn = await page.$(".btn-publish-submit, #publish-btn");
-    if (confirmBtn) {
-      await confirmBtn.click();
-      await page.waitForNavigation({ timeout: 10000 }).catch(() => {});
-    }
-
+  if (response.ok) {
+    const data = (await response.json()) as { entryUrl?: string; url?: string; entryId?: number };
     return {
       success: true,
-      url: page.url(),
+      url: data.entryUrl ?? data.url ?? `https://${blogName}.tistory.com/${data.entryId}`,
       method: "puppeteer",
     };
-  } finally {
-    await browser.close();
   }
+
+  throw new Error(`Puppeteer 폴백 발행 실패: ${response.status} ${response.statusText}`);
 }
 
 /**
@@ -210,13 +183,10 @@ export async function publish(
     console.warn(`HTTP 발행 실패, Puppeteer 폴백: ${httpError}`);
   }
 
-  // 2차: Puppeteer 폴백 (예약 발행은 HTTP에서만 지원)
-  if (scheduledDate) {
-    console.warn("Puppeteer 폴백은 예약 발행을 지원하지 않습니다. 즉시 발행합니다.");
-  }
+  // 2차: Puppeteer 폴백 (JSON API 사용)
   try {
-    console.log("Puppeteer로 발행 시도...");
-    return await publishViaPuppeteer(config.TISTORY_BLOG_NAME, cookies, post);
+    console.log(scheduledDate ? "Puppeteer 폴백으로 예약 발행 시도..." : "Puppeteer 폴백으로 발행 시도...");
+    return await publishViaPuppeteer(config.TISTORY_BLOG_NAME, cookies, post, publishCfg, scheduledDate ?? undefined);
   } catch (puppeteerError) {
     return {
       success: false,
